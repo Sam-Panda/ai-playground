@@ -1,0 +1,9 @@
+
+{
+    "cosmos-config":{
+        "cosmos_db_name" : "mydb",
+        "cosmos_db_container_name" : "products",
+        "cosmos_db_partition_key" : "/id"
+    }
+
+}
