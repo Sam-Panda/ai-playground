@@ -4,6 +4,51 @@
         "cosmos_db_name" : "mydb",
         "cosmos_db_container_name" : "products",
         "cosmos_db_partition_key" : "/id"
+    },
+    "ai-search-config":{
+        "data-source-config":{
+            "cosmos_db_data_source_name" : "cosmosdb-data-source"
+        },
+        "search-index-config": {
+            "name" : "contoso-product-index",
+            "all_fields" : [
+                {"field" :"id", "type": "string"},
+                {"field": "name","type" :"string"},
+                {"field": "price","type" :"double"},
+                {"field": "category","type" :"string"},
+                {"field": "brand","type" :"string"},
+                {"field": "description","type" :"string"},
+                {"field": "description_vectorized","type" :"vector"}
+            ],
+            "key_field" : "id",
+            "retrievable_fields" : ["id","name","price","category","brand","description"],
+            "filterable_fields" : ["id","name","price","category","brand","description"],
+            "sortable_fields" : ["id","price"],
+            "facetable_fields" : ["name","price","category","brand","description"],
+            "searchable_fields" : ["name","description", "description_vectorized"],
+            "vector_fields" : "description_vectorized",
+            "semantic_configurations": {
+                "name": "product-semantic-config",
+                "isEnabled": true,
+                "title_field" : "name",
+                "content_fields" : ["description"],
+                "keyword_fields" : ["brand","category"]
+            }
+        },
+        "search-skillset-config":{
+            "openai-embedding" :{
+                "name" : "skillset-contoso-openai-embedding",
+                "input-column" : "/document/description",
+                "output-column" : "description_vectorized"
+            }
+        },
+        "search-indexer-config":{
+            "name" : "contoso-product-indexer"
+        }
+    },
+    "open_ai_config" : {
+        "embedding_deployment_name" : "text_embedding_model",
+        "embedding_model_name": "text-embedding-ada-002"
     }
 
 }
