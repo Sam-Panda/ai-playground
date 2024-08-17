@@ -18,15 +18,16 @@
                 {"field": "category","type" :"string"},
                 {"field": "brand","type" :"string"},
                 {"field": "description","type" :"string"},
-                {"field": "description_vectorized","type" :"vector"}
+                {"field": "description_vectorized","type" :"vector"},
+                {"field": "brand_vectorized","type" :"vector"}
             ],
             "key_field" : "id",
             "retrievable_fields" : ["id","name","price","category","brand","description"],
             "filterable_fields" : ["id","name","price","category","brand","description"],
             "sortable_fields" : ["id","price"],
             "facetable_fields" : ["name","price","category","brand","description"],
-            "searchable_fields" : ["name","description", "description_vectorized"],
-            "vector_fields" : "description_vectorized",
+            "searchable_fields" : ["name","description", "description_vectorized", "brand_vectorized"],
+            "vector_fields" : ["description_vectorized", "brand_vectorized"],
             "semantic_configurations": {
                 "name": "product-semantic-config",
                 "isEnabled": true,
@@ -36,11 +37,20 @@
             }
         },
         "search-skillset-config":{
-            "openai-embedding" :{
-                "name" : "skillset-contoso-openai-embedding",
-                "input-column" : "/document/description",
-                "output-column" : "description_vectorized"
-            }
+            "name" : "open-ai-embedding",
+            "openai-embedding" :[
+                {                
+                    "name" : "skillset-contoso-openai-embedding_description",
+                    "input-column" : "/document/description",
+                    "output-column" : "description_vectorized"
+                },
+                {                
+                    "name" : "skillset-contoso-openai-embedding_brand",
+                    "input-column" : "/document/brand",
+                    "output-column" : "brand_vectorized"
+                }
+
+            ]
         },
         "search-indexer-config":{
             "name" : "contoso-product-indexer"

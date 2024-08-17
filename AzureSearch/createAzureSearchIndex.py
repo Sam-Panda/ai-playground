@@ -47,7 +47,7 @@ from pathlib import Path
 
 
 
-def data_source_creation(
+def create_data_source(
     service_endpoint: str,
     credential: ClientSecretCredential,
     cosmos_db_container_name: str,
@@ -75,7 +75,7 @@ def create_search_index(
         filterable_fields: List[str],
         sortable_fields: List[str],
         facetable_fields: List[str],
-        vector_field: str,
+        vector_fields: List[str],
         semantic_config_isEnabled: bool,
         semantic_config_name: str,
         semantic_config_title_filed: str,
@@ -87,8 +87,8 @@ def create_search_index(
 
 ):
 
-    vector_search_profile_name = f"Hnsw_{vector_field}_Profile"
-    vector_search_vectorizer_name = f"Vectorizer_{vector_field}"
+    vector_search_profile_name = f"Hnsw_{search_index_name}_Profile"
+    vector_search_vectorizer_name = f"Vectorizer_{search_index_name}"
 
     # Define the index fields
     client = SearchIndexClient(service_endpoint, credential)
@@ -97,8 +97,10 @@ def create_search_index(
         field = search_index_field["field"]
         datatype = search_index_field["type"]
         
-        if field == vector_field:
-            print(f"Vector Field {field}")
+        # check if the field is present vector fields list       
+
+        if field in vector_fields:
+            # print(f"Vector Field {field}")
             srch = SearchField(
                     name=field,
                     type=SearchFieldDataType.Collection(SearchFieldDataType.Single),
@@ -108,7 +110,7 @@ def create_search_index(
             )
         
         else:
-            print(f"Field {field}") 
+            # print(f"Field {field}") 
             type = ""
             # setting the datatype
             if datatype == "string":
@@ -239,22 +241,27 @@ def create_search_index(
 def create_open_ai_embedding_skillset(
     service_endpoint: str,
     credential: ClientSecretCredential,
-    search_skillset_openai_embedding_name: str,
-    search_skillset_openai_embedding_input: str,
-    search_skillset_openai_embedding_output: str,
+    search_skillset_openai_embedding_config: Dict,
     azure_openai_endpoint: str,
     open_ai_embedding_deployment_name: str,
-    open_ai_embedding_model_name: str
+    open_ai_embedding_model_name: str,
+    open_ai_embedding_skillset_name: str
 ):
 
     client = SearchIndexerClient(service_endpoint, credential)
-    inp = InputFieldMappingEntry(name="text", source=search_skillset_openai_embedding_input)
-    output = OutputFieldMappingEntry(name="embedding", target_name=search_skillset_openai_embedding_output)
-    s = AzureOpenAIEmbeddingSkill(name="open-ai-embedding", inputs=[inp], outputs=[output],
+    s = []
+    for skillset in search_skillset_openai_embedding_config:
+        search_skillset_openai_embedding_name = skillset["name"]
+        search_skillset_openai_embedding_input = skillset["input-column"]
+        search_skillset_openai_embedding_output = skillset["output-column"]
+        inp = InputFieldMappingEntry(name="text", source=search_skillset_openai_embedding_input)
+        output = OutputFieldMappingEntry(name="embedding", target_name=search_skillset_openai_embedding_output)
+        _s = AzureOpenAIEmbeddingSkill(name=search_skillset_openai_embedding_name, inputs=[inp], outputs=[output],
                 resource_url=azure_openai_endpoint, deployment_name=open_ai_embedding_deployment_name,
                 model_name=open_ai_embedding_model_name, dimensions=1536)
+        s.append(_s)
 
-    skillset = SearchIndexerSkillset(name=search_skillset_openai_embedding_name, skills=[s], description="example skillset")
+    skillset = SearchIndexerSkillset(name=open_ai_embedding_skillset_name, skills=s, description="Contoso Open AI Embedding skillset")
     result = client.create_or_update_skillset(skillset)
     return result
 
@@ -265,9 +272,8 @@ def create_search_indexer(
     search_indexer_name: str,
     data_source_name: str,
     index_name: str,
-    open_ai_embedding_skillset_name: str,
-    vector_field: str,
-    search_skillset_openai_embedding_output:str,
+    search_skillset_openai_embedding_config: Dict,
+    open_ai_embedding_skillset_name: str
 
         
 ):    
@@ -285,6 +291,11 @@ def create_search_indexer(
                                                     
                                                     )
     parameters = IndexingParameters(configuration=configuration)
+    output_field_mappings = []
+    for skillset in search_skillset_openai_embedding_config:
+        search_skillset_openai_embedding_output = skillset["output-column"]
+        output_field_mappings.append(FieldMapping(source_field_name=f"document/{search_skillset_openai_embedding_output}", target_field_name=search_skillset_openai_embedding_output))
+    
     indexer = SearchIndexer(
         name=search_indexer_name,
         data_source_name=data_source_name,
@@ -292,7 +303,7 @@ def create_search_indexer(
         skillset_name=open_ai_embedding_skillset_name,
         parameters=parameters,
         field_mappings=None,
-        output_field_mappings=[FieldMapping(source_field_name=f"document/{search_skillset_openai_embedding_output}", target_field_name=vector_field)],
+        output_field_mappings=output_field_mappings,
     )
 
     indexer_client = SearchIndexerClient(service_endpoint, credential)
@@ -327,7 +338,7 @@ if __name__ == "__main__":
     # https://learn.microsoft.com/en-us/azure/search/search-howto-index-cosmosdb#supported-credentials-and-connection-strings
 
     print("Creating the data source")
-    data_source = data_source_creation(
+    data_source = create_data_source(
         service_endpoint=service_endpoint,
         credential=credential,
         cosmos_db_container_name=cosmos_db_container_name,
@@ -346,7 +357,7 @@ if __name__ == "__main__":
     facetable_fields = config["ai-search-config"]["search-index-config"]["facetable_fields"]
 
     # we are considering that we will have one vector field.
-    vector_field = config["ai-search-config"]["search-index-config"]["vector_fields"]
+    vector_fields = config["ai-search-config"]["search-index-config"]["vector_fields"]
 
     #semantic configuration details
 
@@ -371,7 +382,7 @@ if __name__ == "__main__":
         filterable_fields=filterable_fields,
         sortable_fields=sortable_fields,
         facetable_fields=facetable_fields,
-        vector_field=vector_field,
+        vector_fields=vector_fields,
         azure_openai_endpoint=azure_openai_endpoint,
         semantic_config_isEnabled=semantic_config_isEnabled,
         semantic_config_name=semantic_config_name,
@@ -385,20 +396,17 @@ if __name__ == "__main__":
 
     # create Azure Open AI Embedding skillset
 
-    search_skillset_openai_embedding_name = config["ai-search-config"]["search-skillset-config"]["openai-embedding"]["name"]
-    search_skillset_openai_embedding_input = config["ai-search-config"]["search-skillset-config"]["openai-embedding"]["input-column"]
-    search_skillset_openai_embedding_output = config["ai-search-config"]["search-skillset-config"]["openai-embedding"]["output-column"]
-
+    search_skillset_openai_embedding_config = config["ai-search-config"]["search-skillset-config"]["openai-embedding"]
+    open_ai_embedding_skillset_name = config["ai-search-config"]["search-skillset-config"]["name"]
     print("Creating the skillset")
     open_ai_embedding_skillset = create_open_ai_embedding_skillset(
         service_endpoint=service_endpoint,
         credential=credential,
-        search_skillset_openai_embedding_name=search_skillset_openai_embedding_name,
-        search_skillset_openai_embedding_input=search_skillset_openai_embedding_input,
-        search_skillset_openai_embedding_output=search_skillset_openai_embedding_output,
+        search_skillset_openai_embedding_config=search_skillset_openai_embedding_config,
         azure_openai_endpoint=azure_openai_endpoint,
         open_ai_embedding_deployment_name=open_ai_embedding_deployment_name,
-        open_ai_embedding_model_name=open_ai_embedding_model_name
+        open_ai_embedding_model_name=open_ai_embedding_model_name,
+        open_ai_embedding_skillset_name=open_ai_embedding_skillset_name
     )
 
 
@@ -411,9 +419,9 @@ if __name__ == "__main__":
         search_indexer_name=search_indexer_name,
         data_source_name=search_indexer_data_source_name,
         index_name=search_index_name,
-        open_ai_embedding_skillset_name=search_skillset_openai_embedding_name,
-        vector_field=vector_field,
-        search_skillset_openai_embedding_output=search_skillset_openai_embedding_output
+        search_skillset_openai_embedding_config=search_skillset_openai_embedding_config,
+        open_ai_embedding_skillset_name=open_ai_embedding_skillset_name
+      
     )
 
     print("Indexer created successfully")
