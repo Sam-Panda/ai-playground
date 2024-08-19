@@ -21,7 +21,7 @@ $clientSecret = $env:CLIENT_SECRET
 $resourceGroupName=$env:RESOURCE_GROUP_NAME
 $url = $env:COSMOS_ENDPOINT
 
-a
+
 # Use a regular expression to extract the subdomain
 if ($url -match "https://(.*?)\.documents\.azure\.com") {
     $accountName = $matches[1]
@@ -45,7 +45,8 @@ $principalId = $principal.Id
 # $accountName = "<hardcoded-cosmos-account-name>"
 
 # https://learn.microsoft.com/en-us/azure/cosmos-db/how-to-setup-rbac#built-in-role-definitions
-$readOnlyRoleDefinitionId = "00000000-0000-0000-0000-000000000002" # as fetched above
+$readOnlyRoleDefinitionId = "00000000-0000-0000-0000-000000000001" # as fetched above
+
 
 # check if the role is present
 $roleAssignment = Get-AzCosmosDBSqlRoleAssignment -AccountName $accountName -ResourceGroupName $resourceGroupName | Where-Object { $_.PrincipalId -eq $principalId -and $_.RoleDefinitionId -match $readOnlyRoleDefinitionId }
@@ -56,4 +57,13 @@ else {
     New-AzCosmosDBSqlRoleAssignment -AccountName $accountName -ResourceGroupName $resourceGroupName -RoleDefinitionId $readOnlyRoleDefinitionId -Scope "/" -PrincipalId $principalId
 
 }
+
+# to-do
+
+# 1. Provide the Search manage identity permission on Cosmos DB to fetch the data.
+# 2. Provide search manage identity and SPN permission on Azure Open AI to call the embedding module ( Azure AI Developer role)
+# 3. Provide the service principal access to the Azure Search service for quering (Search Index Data reader)
+
+
+
 

@@ -39,7 +39,7 @@ from azure.search.documents.indexes.models import (
 
 )
 
-from typing import List, Dict
+from typing import List, Dict , Union
 from openai import AzureOpenAI
 from dotenv import load_dotenv
 
@@ -49,7 +49,7 @@ from pathlib import Path
 
 def create_data_source(
     service_endpoint: str,
-    credential: ClientSecretCredential,
+    credential: DefaultAzureCredential,
     cosmos_db_container_name: str,
     azure_cosmosdb_resource_id_connection_string: str,
     search_indexer_data_source_name: str,
@@ -65,7 +65,7 @@ def create_data_source(
 
 # creating the Indexes
 def create_search_index(
-        credential: ClientSecretCredential,
+        credential: Union [DefaultAzureCredential, ClientSecretCredential],
         config: Dict,
         service_endpoint: str,
         search_index_name: str,
@@ -240,7 +240,9 @@ def create_search_index(
 
 def create_open_ai_embedding_skillset(
     service_endpoint: str,
-    credential: ClientSecretCredential,
+    # credential can be a type of DefaultAzureCredential or ClientSecretCredential
+    credential: Union [DefaultAzureCredential, ClientSecretCredential],
+
     search_skillset_openai_embedding_config: Dict,
     azure_openai_endpoint: str,
     open_ai_embedding_deployment_name: str,
@@ -268,7 +270,7 @@ def create_open_ai_embedding_skillset(
 
 def create_search_indexer(
     service_endpoint: str,
-    credential: ClientSecretCredential,
+    credential: Union[ DefaultAzureCredential, ClientSecretCredential],
     search_indexer_name: str,
     data_source_name: str,
     index_name: str,
@@ -314,14 +316,26 @@ if __name__ == "__main__":
         
     load_dotenv()
 
-    service_endpoint = os.environ["AZURE_SEARCH_SERVICE_ENDPOINT"]
-    tenant_id = os.environ["TENANT_ID"]
-    client_id = os.environ["CLIENT_ID"]
-    client_secret = os.environ["CLIENT_SECRET"]
-    azure_cosmosdb_resource_id_connection_string = os.environ["AZURE_COSMOSDB_RESOURCE_ID_CONNECTION_STRING"]
-    azure_openai_endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
+    try:
+        service_endpoint = os.environ["AZURE_SEARCH_SERVICE_ENDPOINT"]
+        tenant_id = os.environ["TENANT_ID"]
+        client_id = os.environ["CLIENT_ID"]
+        client_secret = os.environ["CLIENT_SECRET"]
+        azure_cosmosdb_resource_id_connection_string = os.environ["AZURE_COSMOSDB_RESOURCE_ID_CONNECTION_STRING"]
+        azure_openai_endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
+    except KeyError as e:
+        print(f"Missing environment variable: {e}")
+        
 
-    credential = ClientSecretCredential(tenant_id, client_id, client_secret)
+    # we will first check if the service principal details are present.
+    if (client_id == "" or client_secret == "" or tenant_id == ""):
+        print("Using the Default credentials")
+        credential = DefaultAzureCredential()
+        
+    else:
+        print("Using the Service Principal credentials")
+        credential = ClientSecretCredential(tenant_id, client_id, client_secret)
+    
 
     search_index_client = SearchIndexClient(service_endpoint, credential)
 
