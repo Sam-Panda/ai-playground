@@ -1,5 +1,8 @@
 import os 
+import json
+import argparse
 import pandas as pd
+from azure.keyvault.secrets import SecretClient
 from azure.identity import DefaultAzureCredential
 from azure.search.documents.indexes import SearchIndexClient, SearchIndexerClient
 from azure.identity import ClientSecretCredential
@@ -46,10 +49,18 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 
+def get_secret_from_keyvault(
+    key_vault_url: str, 
+    credential: Union[DefaultAzureCredential, ClientSecretCredential], 
+    key: str
+    ):
+        secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
+        secret = secret_client.get_secret(key)
+        return secret.value
 
 def create_data_source(
     service_endpoint: str,
-    credential: DefaultAzureCredential,
+    credential: Union [DefaultAzureCredential, ClientSecretCredential],
     cosmos_db_container_name: str,
     azure_cosmosdb_resource_id_connection_string: str,
     search_indexer_data_source_name: str,
@@ -314,18 +325,48 @@ def create_search_indexer(
 
 if __name__ == "__main__":
         
-    load_dotenv()
+    # load_dotenv()
 
-    try:
-        service_endpoint = os.environ["AZURE_SEARCH_SERVICE_ENDPOINT"]
-        tenant_id = os.environ["TENANT_ID"]
-        client_id = os.environ["CLIENT_ID"]
-        client_secret = os.environ["CLIENT_SECRET"]
-        azure_cosmosdb_resource_id_connection_string = os.environ["AZURE_COSMOSDB_RESOURCE_ID_CONNECTION_STRING"]
-        azure_openai_endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
-    except KeyError as e:
-        print(f"Missing environment variable: {e}")
-        
+
+
+    ## If you are reading the value from .env file for the local execution/ debugging. 
+    # try:
+    #     service_endpoint = os.environ["AZURE_SEARCH_SERVICE_ENDPOINT"]
+    #     tenant_id = os.environ["TENANT_ID"]
+    #     client_id = os.environ["CLIENT_ID"]
+    #     client_secret = os.environ["CLIENT_SECRET"]
+    #     azure_cosmosdb_resource_id_connection_string = os.environ["AZURE_COSMOSDB_RESOURCE_ID_CONNECTION_STRING"]
+    #     azure_openai_endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
+    # except KeyError as e:
+    #     print(f"Missing environment variable: {e}")
+    
+    
+    ## If we are reading the environment details from the keyvault. We need to pass an keyvault name as the arguement
+    ## If we want to do authentication using the service principal, we need to pass the client_id, client_secret and tenant_id
+
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--keyVaultName", type=str, help="The name of the key vault")
+    parser.add_argument("--clientId", type=str, nargs='?', const='', help="The client id of the service principal")
+    parser.add_argument("--clientSecret", type=str,  nargs='?', const='',  help="The client secret of the service principal")
+    parser.add_argument("--tenantId", type=str, nargs='?', const='',  help="The tenant id of the service principal")
+    args = parser.parse_args()
+
+
+    key_vault_name = args.keyVaultName
+    if args.clientId is None:
+        client_id = ""
+    else:
+        client_id = args.clientId
+    
+    if args.clientSecret is None:
+        client_secret = ""
+    else:
+        client_secret = args.clientSecret
+    if args.tenantId is None:
+        tenant_id = ""
+    else:
+        tenant_id = args.tenantId
 
     # we will first check if the service principal details are present.
     if (client_id == "" or client_secret == "" or tenant_id == ""):
@@ -335,12 +376,31 @@ if __name__ == "__main__":
     else:
         print("Using the Service Principal credentials")
         credential = ClientSecretCredential(tenant_id, client_id, client_secret)
-    
 
-    search_index_client = SearchIndexClient(service_endpoint, credential)
+    # read the config file where we have all the environment and configuration details
 
     with open("config/config.json") as file:
         config = json.load(file)
+    
+    key_vault_url = f"https://{key_vault_name}.vault.azure.net"
+    environment_details = config["key-vault-config"]["environment-details"]
+
+
+    try:
+        service_endpoint = get_secret_from_keyvault( key_vault_url, credential, environment_details["secret_AZURE_SEARCH_SERVICE_ENDPOINT"])
+        # tenant_id = get_secret_from_keyvault( key_vault_url, credential, environment_details["secret_TENANT_ID"])
+        # client_id = get_secret_from_keyvault( key_vault_url, credential, environment_details["secret_CLIENT_ID"])
+        # client_secret = get_secret_from_keyvault( key_vault_url, credential, environment_details["secret_CLIENT_SECRET"])
+        azure_cosmosdb_resource_id_connection_string = get_secret_from_keyvault( key_vault_url, credential, environment_details["secret_COSMOS_DB_CONNECTION_STRING"])
+        azure_openai_endpoint = get_secret_from_keyvault( key_vault_url, credential, environment_details["secret_open_ai_endpoint"])
+    except KeyError as e:
+        print(f"Missing environment variable: {e}")
+
+
+    # create the search client   
+
+    search_index_client = SearchIndexClient(service_endpoint, credential)
+
 
 
     search_indexer_data_source_name = config["ai-search-config"]["data-source-config"]["cosmos_db_data_source_name"]

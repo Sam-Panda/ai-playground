@@ -1,38 +1,86 @@
 from azure.cosmos import CosmosClient, exceptions, PartitionKey
-from azure.identity import DefaultAzureCredential, InteractiveBrowserCredential
+from azure.identity import DefaultAzureCredential, ClientSecretCredential
+from azure.keyvault.secrets import SecretClient
 import os, json
 from dotenv import load_dotenv
 import pandas as pd
+import argparse
+from typing import List, Dict , Union
 
-load_dotenv()
+def get_secret_from_keyvault(
+    key_vault_url: str, 
+    credential: Union[DefaultAzureCredential, ClientSecretCredential], 
+    key: str
+    ):
+        secret_client = SecretClient(vault_url=key_vault_url, credential=credential)
+        secret = secret_client.get_secret(key)
+        return secret.value
 
 
-
-def get_credential_local_machine():
-    try:
-        credential = DefaultAzureCredential()
-        # Check if given credential can get token successfully.
-        credential.get_token("https://management.azure.com/.default")
-    except Exception as ex:
-        # Fall back to InteractiveBrowserCredential in case DefaultAzureCredential not work
-        # This will open a browser page for
-        credential = InteractiveBrowserCredential()
-    return credential
-
-def get_credential_SPN(
-        client_id: str,
-        client_secret: str,
-        tenant_id: str
-):
-    from azure.identity import ClientSecretCredential
-    return ClientSecretCredential(tenant_id, client_id, client_secret)
 
 
 if __name__ == "__main__":
-    # read the config.json file from (AzureSearch\config\config.json)
+    
+    ## if we have .env file, load the environment variables from the .env file
+    # load_dotenv()
+
+    # COSMOS_ENDPOINT = os.environ["COSMOS_ENDPOINT"]
+    # # for the service principal credential
+    # TENANT_ID = os.environ["TENANT_ID"]
+    # CLIENT_ID = os.environ["CLIENT_ID"]
+    # CLIENT_SECRET = os.environ["CLIENT_SECRET"]
+
+
+    ## If we are reading the environment details from the keyvault. We need to pass an keyvault name as the arguement
+    ## If we want to do authentication using the service principal, we need to pass the client_id, client_secret and tenant_id
+
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--keyVaultName", type=str, help="The name of the key vault")
+    parser.add_argument("--clientId", type=str, nargs='?', const='', help="The client id of the service principal")
+    parser.add_argument("--clientSecret", type=str,  nargs='?', const='',  help="The client secret of the service principal")
+    parser.add_argument("--tenantId", type=str, nargs='?', const='',  help="The tenant id of the service principal")
+    args = parser.parse_args()
+
+
+    key_vault_name = args.keyVaultName
+    if args.clientId is None:
+        client_id = ""
+    else:
+        client_id = args.clientId
+    
+    if args.clientSecret is None:
+        client_secret = ""
+    else:
+        client_secret = args.clientSecret
+    if args.tenantId is None:
+        tenant_id = ""
+    else:
+        tenant_id = args.tenantId
+
+    # we will first check if the service principal details are present.
+    if (client_id == "" or client_secret == "" or tenant_id == ""):
+        print("Using the Default credentials")
+        credential = DefaultAzureCredential()
+        
+    else:
+        print("Using the Service Principal credentials")
+        credential = ClientSecretCredential(tenant_id, client_id, client_secret)
+
+    # read the config file where we have all the environment and configuration details
 
     with open("config/config.json") as file:
         config = json.load(file)
+    
+    key_vault_url = f"https://{key_vault_name}.vault.azure.net"
+    environment_details = config["key-vault-config"]["environment-details"]
+
+
+    try:
+        COSMOS_ENDPOINT = get_secret_from_keyvault( key_vault_url, credential, environment_details["secret_COSMOS_ENDPOINT"])
+        
+    except KeyError as e:
+        print(f"Missing environment variable: {e}")
         
     DATABASE_NAME = config["cosmos-config"]["cosmos_db_name"]
     CONTAINER_NAME = config["cosmos-config"]["cosmos_db_container_name"]
@@ -41,15 +89,10 @@ if __name__ == "__main__":
     # https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/cosmos/azure-cosmos/samples/document_management.py#L149-L156
 
 
-    COSMOS_ENDPOINT = os.environ["COSMOS_ENDPOINT"]
-    # for the service principal credential
 
-    TENANT_ID = os.environ["TENANT_ID"]
-    CLIENT_ID = os.environ["CLIENT_ID"]
-    CLIENT_SECRET = os.environ["CLIENT_SECRET"]
 
     # authentication using SPN
-    client = CosmosClient(COSMOS_ENDPOINT, credential=get_credential_SPN(client_id=CLIENT_ID, client_secret=CLIENT_SECRET, tenant_id=TENANT_ID))
+    client = CosmosClient(COSMOS_ENDPOINT, credential=credential)
 
 
     db = client.create_database_if_not_exists(id=DATABASE_NAME)
