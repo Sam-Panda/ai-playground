@@ -1,3 +1,5 @@
+# this is sample code
+
 from dotenv import load_dotenv
 from azure.identity import ClientSecretCredential
 from azure.search.documents import SearchClient

@@ -17,6 +17,8 @@ from azure.search.documents.indexes.models import (
     SearchField,
     SearchIndexerDataContainer,
     SearchIndexerDataSourceConnection,
+    HighWaterMarkChangeDetectionPolicy,
+    SoftDeleteColumnDeletionDetectionPolicy,
     SearchFieldDataType,
     SearchIndex,
     SemanticSearch,
@@ -66,10 +68,24 @@ def create_data_source(
     search_indexer_data_source_name: str,
 ):
 
+    # Indexing new and changed documents : https://learn.microsoft.com/en-us/azure/search/search-howto-index-cosmosdb#indexing-new-and-changed-documents
+    # Soft delete and data change detection policies : https://learn.microsoft.com/en-us/azure/search/search-howto-index-cosmosdb#indexing-deleted-documents
     ds_client = SearchIndexerClient(service_endpoint, credential)
     container = SearchIndexerDataContainer(name=cosmos_db_container_name)
     data_source_connection = SearchIndexerDataSourceConnection(
-            name=search_indexer_data_source_name, type="cosmosdb", connection_string=azure_cosmosdb_resource_id_connection_string, container=container
+            name=search_indexer_data_source_name, 
+            type="cosmosdb", 
+            connection_string=azure_cosmosdb_resource_id_connection_string, 
+            container=container,
+            data_change_detection_policy=HighWaterMarkChangeDetectionPolicy(
+                odata_type="#Microsoft.Azure.Search.HighWaterMarkChangeDetectionPolicy",
+                high_water_mark_column_name="_ts"
+            ),
+            data_deletion_detection_policy=SoftDeleteColumnDeletionDetectionPolicy(
+                odata_type="#Microsoft.Azure.Search.SoftDeleteColumnDeletionDetectionPolicy",
+                soft_delete_column_name="isDeleted",
+                soft_delete_marker_value="true"
+            )
         )
     data_source = ds_client.create_or_update_data_source_connection(data_source_connection)
     return data_source
@@ -325,48 +341,53 @@ def create_search_indexer(
 
 if __name__ == "__main__":
         
-    # load_dotenv()
-
-
-
-    ## If you are reading the value from .env file for the local execution/ debugging. 
-    # try:
-    #     service_endpoint = os.environ["AZURE_SEARCH_SERVICE_ENDPOINT"]
-    #     tenant_id = os.environ["TENANT_ID"]
-    #     client_id = os.environ["CLIENT_ID"]
-    #     client_secret = os.environ["CLIENT_SECRET"]
-    #     azure_cosmosdb_resource_id_connection_string = os.environ["AZURE_COSMOSDB_RESOURCE_ID_CONNECTION_STRING"]
-    #     azure_openai_endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
-    # except KeyError as e:
-    #     print(f"Missing environment variable: {e}")
-    
+    load_dotenv()
+ 
     
     ## If we are reading the environment details from the keyvault. We need to pass an keyvault name as the arguement
     ## If we want to do authentication using the service principal, we need to pass the client_id, client_secret and tenant_id
 
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--keyVaultName", type=str, help="The name of the key vault")
-    parser.add_argument("--clientId", type=str, nargs='?', const='', help="The client id of the service principal")
-    parser.add_argument("--clientSecret", type=str,  nargs='?', const='',  help="The client secret of the service principal")
-    parser.add_argument("--tenantId", type=str, nargs='?', const='',  help="The tenant id of the service principal")
+    # parser.add_argument("--keyVaultName", type=str, help="The name of the key vault")
+    # parser.add_argument("--clientId", type=str, nargs='?', const='', help="The client id of the service principal")
+    # parser.add_argument("--clientSecret", type=str,  nargs='?', const='',  help="The client secret of the service principal")
+    # parser.add_argument("--tenantId", type=str, nargs='?', const='',  help="The tenant id of the service principal")
     args = parser.parse_args()
 
 
-    key_vault_name = args.keyVaultName
-    if args.clientId is None:
-        client_id = ""
-    else:
-        client_id = args.clientId
+    try:
+        key_vault_name = args.keyVaultName
+    except AttributeError as e:
+        print(f"Missing key vault name in the arguments, trying to read from environment variable: {e}")
+        key_vault_name = os.environ["KEY_VAULT_NAME"]
+
+    try:
+        if args.clientId is None:
+            client_id = ""
+        else:
+            client_id = args.clientId
+    except AttributeError as e:
+        print(f"Missing clientId in the arguments, trying to read from environment variable: {e}")
+        client_id = os.environ["CLIENT_ID"]
     
-    if args.clientSecret is None:
-        client_secret = ""
-    else:
-        client_secret = args.clientSecret
-    if args.tenantId is None:
-        tenant_id = ""
-    else:
-        tenant_id = args.tenantId
+    try:   
+        if args.clientSecret is None:
+            client_secret = ""
+        else:
+            client_secret = args.clientSecret
+    except AttributeError as e:
+        print(f"Missing clientSecret in the arguments, trying to read from environment variable: {e}")
+        client_secret = os.environ["CLIENT_SECRET"]
+
+    try:
+        if args.tenantId is None:
+            tenant_id = ""
+        else:
+            tenant_id = args.tenantId
+    except AttributeError as e:
+        print(f"Missing tenantId in the arguments, trying to read from environment variable: {e}")
+        tenant_id = os.environ["TENANT_ID"]
 
     # we will first check if the service principal details are present.
     if (client_id == "" or client_secret == "" or tenant_id == ""):
@@ -379,22 +400,20 @@ if __name__ == "__main__":
 
     # read the config file where we have all the environment and configuration details
 
-    with open("config/config.json") as file:
+    with open(f"{os.getcwd()}/AzureSearch/config/config.json") as file:
         config = json.load(file)
     
+    # reading the other parameters from the key vault
     key_vault_url = f"https://{key_vault_name}.vault.azure.net"
     environment_details = config["key-vault-config"]["environment-details"]
 
 
     try:
         service_endpoint = get_secret_from_keyvault( key_vault_url, credential, environment_details["secret_AZURE_SEARCH_SERVICE_ENDPOINT"])
-        # tenant_id = get_secret_from_keyvault( key_vault_url, credential, environment_details["secret_TENANT_ID"])
-        # client_id = get_secret_from_keyvault( key_vault_url, credential, environment_details["secret_CLIENT_ID"])
-        # client_secret = get_secret_from_keyvault( key_vault_url, credential, environment_details["secret_CLIENT_SECRET"])
         azure_cosmosdb_resource_id_connection_string = get_secret_from_keyvault( key_vault_url, credential, environment_details["secret_COSMOS_DB_CONNECTION_STRING"])
         azure_openai_endpoint = get_secret_from_keyvault( key_vault_url, credential, environment_details["secret_open_ai_endpoint"])
     except KeyError as e:
-        print(f"Missing environment variable: {e}")
+        print(f"Missing key vault secrets : {e}")
 
 
     # create the search client   
