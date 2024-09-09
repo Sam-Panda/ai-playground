@@ -46,17 +46,16 @@ $principalId = $principal.Id
 
 # https://learn.microsoft.com/en-us/azure/cosmos-db/how-to-setup-rbac#built-in-role-definitions
 $readOnlyRoleDefinitionId = "00000000-0000-0000-0000-000000000001" # as fetched above
-
+$principalId="8cfd0549-37f1-4856-be75-1f98bc23fec7"
+$ResourceGroupName="rg-4stuq7hz6hvu6-eastus"
 
 # check if the role is present
 $roleAssignment = Get-AzCosmosDBSqlRoleAssignment -AccountName $accountName -ResourceGroupName $resourceGroupName | Where-Object { $_.PrincipalId -eq $principalId -and $_.RoleDefinitionId -match $readOnlyRoleDefinitionId }
-if ($roleAssignment) {
-    Write-Output "Role assignment already exists"    
+if (!$roleAssignment) {
+    Write-Output "Assigning role to the service principal"
+    New-AzCosmosDBSqlRoleAssignment -AccountName $accountName -ResourceGroupName $resourceGroupName -RoleDefinitionId $readOnlyRoleDefinitionId -Scope "/" -PrincipalId $principalId  
 }
-else {
-    New-AzCosmosDBSqlRoleAssignment -AccountName $accountName -ResourceGroupName $resourceGroupName -RoleDefinitionId $readOnlyRoleDefinitionId -Scope "/" -PrincipalId $principalId
 
-}
 
 # to-do
 

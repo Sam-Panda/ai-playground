@@ -2,6 +2,7 @@
 {
     "key-vault-config": {
         "environment-details"  :{
+            
             "secret_AZURE_SEARCH_SERVICE_ENDPOINT" : "AZURE-SEARCH-SERVICE-ENDPOINT",
             "secret_COSMOS_DB_CONNECTION_STRING" : "AZURE-COSMOSDB-RESOURCE-ID-CONNECTION-STRING",
             "secret_open_ai_endpoint" : "AZURE-OPENAI-ENDPOINT",
@@ -9,39 +10,40 @@
         }
     },
     "cosmos-config":{
-        "cosmos_db_name" : "mydb",
+        "cosmos_db_name" : "catalogDb",
         "cosmos_db_container_name" : "products",
         "cosmos_db_partition_key" : "/id"
     },
     "ai-search-config":{
         "data-source-config":{
-            "cosmos_db_data_source_name" : "cosmosdb-data-source"
+            "cosmos_db_data_source_name" : "cosmos-db-data-source"
         },
         "search-index-config": {
             "name" : "contoso-product-index",
             "all_fields" : [
                 {"field" :"id", "type": "string"},
-                {"field": "name","type" :"string"},
-                {"field": "price","type" :"double"},
-                {"field": "category","type" :"string"},
-                {"field": "brand","type" :"string"},
-                {"field": "description","type" :"string"},
-                {"field": "description_vectorized","type" :"vector"},
-                {"field": "brand_vectorized","type" :"vector"}
+                {"field": "Type","type" :"string"},
+                {"field": "Brand","type" :"string"},
+                {"field": "Name","type" :"string"},
+                {"field": "Description","type" :"string"},
+                {"field": "Price","type" :"double"},
+                {"field": "Image_URL","type" :"string"},
+                {"field": "isDeleted","type" :"boolean"},
+                {"field": "description_vectorized","type" :"vector"}
             ],
             "key_field" : "id",
-            "retrievable_fields" : ["id","name","price","category","brand","description"],
-            "filterable_fields" : ["id","name","price","category","brand","description"],
-            "sortable_fields" : ["id","price"],
-            "facetable_fields" : ["name","price","category","brand","description"],
+            "retrievable_fields" : ["id","Name","Type","Description","Price","Image_URL","isDeleted","description_vectorized"],
+            "filterable_fields" : ["id","Name","Type","Description","Brand","Price"],
+            "sortable_fields" : ["Name","Price"],
+            "facetable_fields" : ["Name","Price","Type","Brand","Description"],
             "searchable_fields" : ["name","description", "description_vectorized", "brand_vectorized"],
-            "vector_fields" : ["description_vectorized", "brand_vectorized"],
+            "vector_fields" : ["description_vectorized"],
             "semantic_configurations": {
                 "name": "product-semantic-config",
                 "isEnabled": true,
                 "title_field" : "name",
-                "content_fields" : ["description"],
-                "keyword_fields" : ["brand","category"]
+                "content_fields" : ["Description"],
+                "keyword_fields" : ["Brand","Type"]
             }
         },
         "search-skillset-config":{
@@ -49,13 +51,8 @@
             "openai-embedding" :[
                 {                
                     "name" : "skillset-contoso-openai-embedding_description",
-                    "input-column" : "/document/description",
+                    "input-column" : "/document/Description",
                     "output-column" : "description_vectorized"
-                },
-                {                
-                    "name" : "skillset-contoso-openai-embedding_brand",
-                    "input-column" : "/document/brand",
-                    "output-column" : "brand_vectorized"
                 }
 
             ]
@@ -65,7 +62,7 @@
         }
     },
     "open_ai_config" : {
-        "embedding_deployment_name" : "text_embedding_model",
+        "embedding_deployment_name" : "embedding",
         "embedding_model_name": "text-embedding-ada-002"
     }
 
