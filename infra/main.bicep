@@ -1,7 +1,7 @@
 
 targetScope = 'subscription'
 
-param location string = 'eastus'
+param location string = 'westus'
 @secure()
 param spnObjectId string = 'a6b0fb66-4af8-416d-bc65-507704d09252'
 // param spnObjectId string = '0632dc76-0224-455a-bea2-3efca1538c4e'
@@ -11,7 +11,7 @@ param isPrivate bool = true
 param tags object = {
   environment: 'dev'
 }
-var prefix = toLower(uniqueString(subscription().id, location))
+var prefix = toLower(uniqueString(subscription().id, '-', location))
 var cosmosDbDatabaseName = 'catalogDb'
 var cosmosDbContainerName = 'products'
 var cosmosDbPrivateEndpointName = '${prefix}-cosmosdb-pe'
@@ -137,18 +137,18 @@ module searchService './modules/searchService/search.bicep' = {
 // OpenAI deployment
 
 var defaultOpenAiDeployments = [
-  {
-    name: chatGpt.deploymentName
-    model: {
-      format: 'OpenAI'
-      name: chatGpt.modelName
-      version: chatGpt.deploymentVersion
-    }
-    sku: {
-      name: 'Standard'
-      capacity: chatGpt.deploymentCapacity
-    }
-  }
+  // {
+  //   name: chatGpt.deploymentName
+  //   model: {
+  //     format: 'OpenAI'
+  //     name: chatGpt.modelName
+  //     version: chatGpt.deploymentVersion
+  //   }
+  //   sku: {
+  //     name: 'Standard'
+  //     capacity: chatGpt.deploymentCapacity
+  //   }
+  // }
   {
     name: embedding.deploymentName
     model: {
@@ -204,7 +204,7 @@ module openAiRoleUser './modules/security/role.bicep' =  {
   scope: rg
   name: 'openai-azure-ai-developer'
   params: {
-    principalIds: [searchService.outputs.principalId, spnObjectId]
+    principalIds: [searchService.outputs.principalId]
     roleDefinitionId: '64702f94-c441-49e6-a78b-ef80e0188fee'
   }
   dependsOn: [
@@ -212,30 +212,9 @@ module openAiRoleUser './modules/security/role.bicep' =  {
   ]
 }
 
-// provide the service principal access as contributor to the resource group
-module rgRoleContributor './modules/security/role.bicep' =  {
-  scope: rg
-  name: 'rg-contributor'
-  params: {
-    principalIds: [spnObjectId]
-    roleDefinitionId: 'b24988ac-6180-42a0-ab88-20f7382dd24c'
-  }
-}
 
-// provide service principal access to serach service as "Azure Search Service Data Contributor"
-module searchServiceDataRoleContributor './modules/security/role.bicep' =  {
-  scope: rg
-  name: 'search-service-data-contributor'
-  params: {
-    principalIds: [spnObjectId]
-    roleDefinitionId: '8ebe5a00-799e-43f5-93ac-243d3dce84a7'
-  }
-  dependsOn: [
-    searchService
-  ]
-}
 
-// provide service principal access to serach service as "Azure Search Service Data Contributor"
+// provide service principal access to serach service as "Search Service Contributor"
 module searchServiceRoleContributor './modules/security/role.bicep' =  {
   scope: rg
   name: 'search-service-contributor'
@@ -248,7 +227,18 @@ module searchServiceRoleContributor './modules/security/role.bicep' =  {
   ]
 }
 
+// provide search service endpoint Cosmos DB Account Reader Role 
 
-
+module cosmosDbAccountReaderRole './modules/security/role.bicep' =  {
+  scope: rg
+  name: 'cosmosdb-reader'
+  params: {
+    principalIds: [searchService.outputs.principalId]
+    roleDefinitionId: 'fbdf93bf-df7d-467e-a4d2-9458aa1360c8'
+  }
+  dependsOn: [
+    cosmos,searchService
+  ]
+}
 
 

@@ -11,10 +11,17 @@ RUN pip install --no-cache-dir -r requirement.txt
 # Copy the rest of the application code into the container, except .env file
 COPY . .
 # Set environment variables
-ENV KEY_VAULT_NAME=''
-ENV TENANT_ID=''
+
+ENV MI_CLINET_ID=''
+ENV COSMOS_ENDPOINT=''
+ENV AZURE_SEARCH_SERVICE_ENDPOINT=''
 ENV CLIENT_ID=''
 ENV CLIENT_SECRET=''
+ENV TENANT_ID=''
+ENV AZURE_COSMOSDB_RESOURCE_ID_CONNECTION_STRING=''
+ENV AZURE_OPENAI_ENDPOINT=''
+
+
 # Set the command to run the application
 # CMD ["ls", "-la" , "."]
 

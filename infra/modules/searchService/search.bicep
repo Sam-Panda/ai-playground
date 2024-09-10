@@ -10,8 +10,12 @@ param sku object = {
   name: 'standard'
 }
 
-param authOptions object = {}
-param disableLocalAuth bool = false
+param authOptions object = {
+  aadOrApiKey: {
+    aadAuthFailureMode: 'http401WithBearerChallenge'
+  }
+}
+param disableLocalAuth bool = true
 param encryptionWithCmk object = {
   enforcement: 'Unspecified'
 }

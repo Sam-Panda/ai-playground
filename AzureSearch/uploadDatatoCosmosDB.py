@@ -1,5 +1,5 @@
 from azure.cosmos import CosmosClient, exceptions, PartitionKey
-from azure.identity import DefaultAzureCredential, ClientSecretCredential
+from azure.identity import DefaultAzureCredential, ClientSecretCredential, ManagedIdentityCredential
 from azure.keyvault.secrets import SecretClient
 import os, json
 from dotenv import load_dotenv
@@ -24,10 +24,14 @@ if __name__ == "__main__":
     ## if we have .env file, load the environment variables from the .env file
     load_dotenv()  
 
+
     COSMOS_ENDPOINT = os.environ["COSMOS_ENDPOINT"]
     tenant_id = os.environ["TENANT_ID"]
     client_id = os.environ["CLIENT_ID"]
     client_secret = os.environ["CLIENT_SECRET"]
+    MI_CLIENT_ID = os.environ["MI_CLIENT_ID"]
+
+
 
     # print(f"Key Vault Name: {key_vault_name}")
 
@@ -85,7 +89,12 @@ if __name__ == "__main__":
     #     tenant_id = os.environ["TENANT_ID"]
 
     # we will first check if the service principal details are present.
-    if (client_id == "" or client_secret == "" or tenant_id == ""):
+    
+    if (MI_CLIENT_ID != ""):
+        print("Using the Managed Identity credentials")
+        credential = ManagedIdentityCredential(client_id=MI_CLIENT_ID)
+
+    elif (client_id == "" or client_secret == "" or tenant_id == ""):
         print("Using the Default credentials")
         credential = DefaultAzureCredential()
         

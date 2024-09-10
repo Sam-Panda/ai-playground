@@ -406,7 +406,7 @@ if __name__ == "__main__":
 
     # read the config file where we have all the environment and configuration details
 
-    with open(f"{os.getcwd()}/config/config.json") as file:
+    with open(f"{os.getcwd()}/AzureSearch/config/config.json") as file:
         config = json.load(file)
     
     # reading the other parameters from the key vault
