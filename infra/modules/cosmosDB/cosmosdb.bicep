@@ -5,14 +5,17 @@ param tags object
 param partitionKey string
 param isPrivate bool
 param vnet object
+param cosmosDbAccountName string = '${prefix}-cosmosdb'
 param cosmosDbDatabaseName string
 param cosmosDbContainerName string
 param cosmosDbPrivateEndpointName string
+param cosmosDbDataReaders array = []
+param cosmosDbDataContributors array =[]
 
 
 
 resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
-  name: '${prefix}-cosmosdb'
+  name: cosmosDbAccountName
   location: location
   tags: tags
   properties: {
@@ -97,6 +100,47 @@ resource cosmosDbPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' =
   location: 'global'
   tags: tags
 }
+
+
+var cosmosDataReaderRoleDefinitionId = '00000000-0000-0000-0000-000000000001'
+
+@batchSize(1)
+resource sqlReaderRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-04-15' = [for cosmosDbDataReader in cosmosDbDataReaders: {
+  name: guid(
+    cosmosDataReaderRoleDefinitionId,
+    cosmosDbDataReader,
+    cosmosDbAccount.id,
+    'sqlDbDataContributorRoleAssignment'
+  )
+  parent: cosmosDbAccount
+  properties: {
+    principalId: cosmosDbDataReader
+    roleDefinitionId: '/${subscription().id}/resourceGroups/${resourceGroup().name}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDbAccount.name}/sqlRoleDefinitions/${cosmosDataReaderRoleDefinitionId}'
+    scope: cosmosDbAccount.id
+  }
+}
+]
+
+
+var cosmosDataContributorRoleDefinitionId = '00000000-0000-0000-0000-000000000002'
+
+@batchSize(1)
+resource sqlContributorRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-04-15' = [for cosmosDbDataReader in cosmosDbDataReaders: {
+  name: guid(
+    cosmosDataContributorRoleDefinitionId,
+    cosmosDbDataReader,
+    cosmosDbAccount.id,
+    'sqlDbDataContributorRoleAssignment'
+  )
+  parent: cosmosDbAccount
+  properties: {
+    principalId: cosmosDbDataReader
+    roleDefinitionId: '/${subscription().id}/resourceGroups/${resourceGroup().name}/providers/Microsoft.DocumentDB/databaseAccounts/${cosmosDbAccount.name}/sqlRoleDefinitions/${cosmosDataContributorRoleDefinitionId}'
+    scope: cosmosDbAccount.id
+  }
+}
+]
+
 
 output cosmosDbAccount object = cosmosDbAccount
 

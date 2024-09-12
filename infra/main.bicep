@@ -12,6 +12,7 @@ param tags object = {
   environment: 'dev'
 }
 var prefix = toLower(uniqueString(subscription().id, '-', location))
+var cosmosDbAccountName = '${prefix}-cosmosdb'
 var cosmosDbDatabaseName = 'catalogDb'
 var cosmosDbContainerName = 'products'
 var cosmosDbPrivateEndpointName = '${prefix}-cosmosdb-pe'
@@ -93,29 +94,18 @@ module cosmos 'modules/cosmosDB/cosmosdb.bicep' = {
     partitionKey: paritionKey
     isPrivate: isPrivate
     vnet: vnet.outputs.vnet
+    cosmosDbAccountName: cosmosDbAccountName
     cosmosDbDatabaseName: cosmosDbDatabaseName
     cosmosDbContainerName: cosmosDbContainerName
     cosmosDbPrivateEndpointName: cosmosDbPrivateEndpointName
+    cosmosDbDataReaders: [searchService.outputs.principalId]
+    cosmosDbDataContributors: [spnObjectId]
   }
+  dependsOn:[
+    vnet,searchService
+  ]
 }
 
-// role creation for the cosmosdb and assignment to the service principal
-
-// module  cosmosdbRoleCreationAndAssignment 'modules/cosmosDB/cosmosDbCustomRole.bicep' = {
-//   scope: rg
-//   name: 'cosmosdbRoleCreationAndAssignment'
-//   params: {
-//     accountName: cosmos.outputs.cosmosDbAccount.name
-//     databaseAccount: cosmos.outputs.cosmosDbAccount
-//     roleDefinitionName: 'CosmosDBSQLReadWriteRole'
-//     dataActions: [
-//       'Microsoft.DocumentDB/databaseAccounts/readMetadata'
-//       'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/items/*'
-//       'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers/*'
-//     ]
-//     principalId: spnObjectId
-//   }
-// }
 
 // creating the serach service
 
@@ -241,4 +231,9 @@ module cosmosDbAccountReaderRole './modules/security/role.bicep' =  {
   ]
 }
 
+var containerJobName = '${prefix}-container-job'
 
+resource containerAppUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
+  name: containerAppUmidName
+  location: location
+}

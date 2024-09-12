@@ -3,10 +3,10 @@
     "key-vault-config": {
         "environment-details"  :{
             
-            "secret_AZURE_SEARCH_SERVICE_ENDPOINT" : "AZURE-SEARCH-SERVICE-ENDPOINT",
-            "secret_COSMOS_DB_CONNECTION_STRING" : "AZURE-COSMOSDB-RESOURCE-ID-CONNECTION-STRING",
-            "secret_open_ai_endpoint" : "AZURE-OPENAI-ENDPOINT",
-            "secret_COSMOS_ENDPOINT" : "COSMOS-ENDPOINT"
+            "secret_AZURE_SEARCH_SERVICE_ENDPOINT" : "AZURE-SEARCH-SERVICE-ENDPOINT (Optional, if we are using keyvault to read the config data)",
+            "secret_COSMOS_DB_CONNECTION_STRING" : "AZURE-COSMOSDB-RESOURCE-ID-CONNECTION-STRING (Optional, if we are using keyvault to read the config data)",
+            "secret_open_ai_endpoint" : "AZURE-OPENAI-ENDPOINT (Optional, if we are using keyvault to read the config data)",
+            "secret_COSMOS_ENDPOINT" : "COSMOS-ENDPOINT (Optional, if we are using keyvault to read the config data)"
         }
     },
     "cosmos-config":{
