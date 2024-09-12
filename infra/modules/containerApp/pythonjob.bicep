@@ -1,7 +1,49 @@
 param containerJobName string
 param location string
 param containerAppUserManagedIdentity object
+param cosmosDbAccount object
+param database object
+param acrLogInServer string
+param openAiEndpoint string
+param containerAppEnvironmentName string
+param tags object
+param lawName string
+param vnet object
+param jobImageName string
+param aiSearchName string
 
+
+
+
+
+resource law 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
+  name: lawName
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+  }
+}
+
+resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
+  name: containerAppEnvironmentName
+  location: location
+  tags: tags
+  properties: {
+    appLogsConfiguration: {
+      destination: 'log-analytics'
+      logAnalyticsConfiguration: {
+        customerId: law.properties.customerId
+        sharedKey: listKeys(law.id, law.apiVersion).primarySharedKey
+      }
+    }
+    vnetConfiguration: {
+      internal: false
+      infrastructureSubnetId: vnet.properties.subnets[1].id
+    }
+  }
+}
 
 
 resource pythonContainer 'Microsoft.App/jobs@2024-03-01' = {
@@ -31,7 +73,7 @@ resource pythonContainer 'Microsoft.App/jobs@2024-03-01' = {
       registries: [
         {
           identity: containerAppUserManagedIdentity.id
-          server: acr.properties.loginServer
+          server: acrLogInServer
         }
       ]
     }
@@ -52,7 +94,7 @@ resource pythonContainer 'Microsoft.App/jobs@2024-03-01' = {
             }
             {
               name: 'AZURE_SEARCH_ENDPOINT'
-              value: 'https://${aiSearch.name}.search.windows.net'
+              value: 'https://${aiSearchName}.search.windows.net'
             }
             {
               name: 'COSMOS_ENDPOINT'
@@ -68,7 +110,7 @@ resource pythonContainer 'Microsoft.App/jobs@2024-03-01' = {
             }
             {
               name: 'OPEN_AI_ENDPOINT'
-              value: openAi.properties.endpoint
+              value: openAiEndpoint
             }
           ]
         }
@@ -77,19 +119,22 @@ resource pythonContainer 'Microsoft.App/jobs@2024-03-01' = {
   }
 }
 
-resource runPythonJob 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
-  name: 'runPythonJob'
-  location: location
-  kind: 'AzureCLI'
-  identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${containerAppUserManagedIdentity.id}': {}
-    }
-  }
-  properties: {
-    azCliVersion: '2.61.0'
-    retentionInterval: 'PT1H'
-    scriptContent: 'az containerapp job start --name ${pythonContainer.name} --resource-group ${resourceGroup().name}'
-  }
-}
+// resource runPythonJob 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+//   name: 'runPythonJob'
+//   location: location
+//   kind: 'AzureCLI'
+//   identity: {
+//     type: 'UserAssigned'
+//     userAssignedIdentities: {
+//       '${containerAppUserManagedIdentity.id}': {}
+//     }
+//   }
+//   properties: {
+//     azCliVersion: '2.61.0'
+//     retentionInterval: 'PT1H'
+//     scriptContent: 'az containerapp job start --name ${pythonContainer.name} --resource-group ${resourceGroup().name}'
+//   }
+// }
+
+
+

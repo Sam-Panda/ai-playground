@@ -31,6 +31,14 @@ if __name__ == "__main__":
     client_secret = os.environ["CLIENT_SECRET"]
     MI_CLIENT_ID = os.environ["MI_CLIENT_ID"]
 
+    # print the values of the environment variables
+    print(f"COSMOS_ENDPOINT: {COSMOS_ENDPOINT}")
+    print(f"tenant_id: {tenant_id}")
+    print(f"client_id: {client_id}")
+    # print(f"client_secret: {client_secret}")
+    print(f"MI_CLIENT_ID: {MI_CLIENT_ID}")
+    
+
 
 
     # print(f"Key Vault Name: {key_vault_name}")

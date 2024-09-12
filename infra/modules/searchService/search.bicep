@@ -28,7 +28,7 @@ param hostingMode string = 'default'
   'enabled'
   'disabled'
 ])
-param publicNetworkAccess string = 'enabled'
+param publicNetworkAccess string = 'disabled'
 param partitionCount int = 1
 param replicaCount int = 1
 @allowed([
@@ -59,6 +59,7 @@ resource search 'Microsoft.Search/searchServices@2023-11-01' = {
     publicNetworkAccess: publicNetworkAccess
     replicaCount: replicaCount
     semanticSearch: semanticSearch
+
   }
   sku: sku
 

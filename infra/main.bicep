@@ -1,9 +1,11 @@
 
 targetScope = 'subscription'
 
+param clientIpAddress string
+
 param location string = 'westus'
 @secure()
-param spnObjectId string = 'a6b0fb66-4af8-416d-bc65-507704d09252'
+param spnObjectId string
 // param spnObjectId string = '0632dc76-0224-455a-bea2-3efca1538c4e'
 
 param addressPrefix string = '10.100.0.0/16'
@@ -61,6 +63,8 @@ param gpt4vDeploymentName string = 'gpt-4o'
 param gpt4vModelVersion string = '2024-05-13'
 param gpt4vDeploymentCapacity int = 10
 
+param acrName string = 'acrpythonjobretailsearch'
+param  jobImageName string = 'firstdockerpython'
 
 //creating the resourcegroup
 
@@ -68,6 +72,11 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name:  'rg-${prefix}-${location}'
   location: location
   tags: tags
+}
+
+resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' existing = {
+  scope: rg
+  name: acrName
 }
 
 // creating the vnet 
@@ -99,10 +108,11 @@ module cosmos 'modules/cosmosDB/cosmosdb.bicep' = {
     cosmosDbContainerName: cosmosDbContainerName
     cosmosDbPrivateEndpointName: cosmosDbPrivateEndpointName
     cosmosDbDataReaders: [searchService.outputs.principalId]
-    cosmosDbDataContributors: [spnObjectId]
+    cosmosDbDataContributors: [spnObjectId, userManagedIdentity.outputs.containerAppUserManagedIdentity.properties.principalId]
+    clientIpAddress: clientIpAddress
   }
   dependsOn:[
-    vnet,searchService
+    vnet,searchService,userManagedIdentity
   ]
 }
 
@@ -209,11 +219,11 @@ module searchServiceRoleContributor './modules/security/role.bicep' =  {
   scope: rg
   name: 'search-service-contributor'
   params: {
-    principalIds: [spnObjectId]
+    principalIds: [spnObjectId, userManagedIdentity.outputs.containerAppUserManagedIdentity.properties.principalId]
     roleDefinitionId: '7ca78c08-252a-4471-8644-bb5ff32d4ba0'
   }
   dependsOn: [
-    searchService
+    searchService, pythonJob
   ]
 }
 
@@ -232,8 +242,39 @@ module cosmosDbAccountReaderRole './modules/security/role.bicep' =  {
 }
 
 var containerJobName = '${prefix}-container-job'
+var containerAppUmidName = '${prefix}-container-app-umid'
+var containerAppEnvironmentName = '${prefix}-container-app-env'
+var lawName = '${prefix}-law'
 
-resource containerAppUserManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
-  name: containerAppUmidName
-  location: location
+module userManagedIdentity './modules/security/userManagedIdentity.bicep' = {
+  scope: rg
+  name: 'umi'
+  params:{
+    containerAppUmidName: containerAppUmidName
+    location: location
+  }
+}
+
+module pythonJob './modules/containerApp/pythonjob.bicep' = {
+  scope: rg
+  name: 'pythonjob'
+  params: {
+    containerJobName: containerJobName
+    containerAppUserManagedIdentity: userManagedIdentity.outputs.containerAppUserManagedIdentity
+    location: location
+    cosmosDbAccount: cosmos.outputs.cosmosDbAccount
+    database: cosmos.outputs.cosmosDbDatabase
+    acrLogInServer: acr.properties.loginServer
+    openAiEndpoint: openAi.outputs.endpoint
+    containerAppEnvironmentName: containerAppEnvironmentName
+    tags: tags
+    lawName: lawName
+    vnet: vnet.outputs.vnet
+    jobImageName: jobImageName  
+    aiSearchName : searchService.outputs.name     
+    
+  }
+  dependsOn: [
+    acr,cosmos,searchService,openAi
+  ]
 }

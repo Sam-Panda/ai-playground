@@ -11,6 +11,7 @@ param cosmosDbContainerName string
 param cosmosDbPrivateEndpointName string
 param cosmosDbDataReaders array = []
 param cosmosDbDataContributors array =[]
+param clientIpAddress string
 
 
 
@@ -25,6 +26,11 @@ resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
       {
         locationName: location
         isZoneRedundant: false
+      }
+    ]
+    ipRules:[
+      {
+        ipAddressOrRange: clientIpAddress
       }
     ]
     publicNetworkAccess: 'Disabled'
@@ -125,7 +131,7 @@ resource sqlReaderRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleA
 var cosmosDataContributorRoleDefinitionId = '00000000-0000-0000-0000-000000000002'
 
 @batchSize(1)
-resource sqlContributorRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-04-15' = [for cosmosDbDataReader in cosmosDbDataReaders: {
+resource sqlContributorRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2023-04-15' = [for cosmosDbDataReader in cosmosDbDataContributors: {
   name: guid(
     cosmosDataContributorRoleDefinitionId,
     cosmosDbDataReader,
@@ -143,4 +149,7 @@ resource sqlContributorRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sql
 
 
 output cosmosDbAccount object = cosmosDbAccount
+output cosmosDbDatabase object = database
+output cosmosDbContainer object = container
+
 
