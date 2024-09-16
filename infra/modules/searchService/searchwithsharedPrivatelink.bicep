@@ -5,10 +5,10 @@ param prefix string
 param location string = resourceGroup().location
 param tags object = {}
 param vnet object
-// @secure()
-// param comsosAccountResourceID string
-// @secure()
-// param openAIResourceID string
+@secure()
+param comsosAccountResourceID string
+@secure()
+param openAIResourceID string
 
 
 
@@ -44,13 +44,13 @@ param replicaCount int = 1
 ])
 param semanticSearch string = 'free'
 
-var aisearchPrivateEndpointName = '${prefix}-aisearch-pe'
+
 
 var searchIdentityProvider = (sku.name == 'free') ? null : {
   type: 'SystemAssigned'
 }
 
-resource search 'Microsoft.Search/searchServices@2023-11-01' = {
+resource search 'Microsoft.Search/searchServices@2023-11-01'  = {
   name: name
   location: location
   tags: tags
@@ -68,55 +68,28 @@ resource search 'Microsoft.Search/searchServices@2023-11-01' = {
 
   }
   sku: sku
-
-
-}
-
-resource aisearchprivateEndpoint 'Microsoft.Network/privateEndpoints@2024-01-01' = if (isPrivate) {
-  name: aisearchPrivateEndpointName
-  location: location
-  tags: tags
-  properties: {
-    privateLinkServiceConnections: [
-      {
-        name: 'searchService'
-        properties: {
-          privateLinkServiceId: search.id
-          groupIds: [
-            'searchService'
-          ]
-        }
-      }
-    ]
-    subnet: {
-      id: vnet.properties.subnets[0].id
+  resource sharedPrivateLinkResourceOpenAi 'sharedPrivateLinkResources@2023-11-01' =  {
+    name: 'search-shared-private-link-openAi'
+    properties: {
+      groupId: 'openai_account'
+      status: 'Approved'
+      provisioningState: 'Succeeded'
+      requestMessage: 'automatically created by the system'
+      privateLinkResourceId: openAIResourceID
     }
   }
-}
-
-
-resource aisearchPrivateLinkServiceGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-01-01' = if (isPrivate) {
-  parent: aisearchprivateEndpoint
-  name: '${prefix}-aisearch-plsg'
-  properties: {
-    privateDnsZoneConfigs: [
-      {
-        name: 'searchService'
-        properties: {
-          privateDnsZoneId: aiSearchPrivateDnsZone.id
-        }
-      }
-    ]
+  resource sharedPrivateLinkResourceCosmosDb 'sharedPrivateLinkResources@2023-11-01' =  {
+    name: 'search-shared-private-link-cosmosDb'
+    properties: {
+      groupId: 'Sql'
+      status: 'Approved'
+      provisioningState: 'Succeeded'
+      requestMessage: 'automatically created by the system'
+      privateLinkResourceId: comsosAccountResourceID
+    }
   }
+
 }
-
-resource aiSearchPrivateDnsZone 'Microsoft.Network/privateDnsZones@2020-06-01' = if (isPrivate) {
-  name: 'privatelink.search.windows.net'
-  location: 'global'
-  tags: tags
-}
-
-
 
 
 output id string = search.id

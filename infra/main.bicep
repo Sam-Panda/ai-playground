@@ -6,7 +6,6 @@ param clientIpAddress string
 param location string = 'westus'
 @secure()
 param spnObjectId string
-// param spnObjectId string = '0632dc76-0224-455a-bea2-3efca1538c4e'
 
 param addressPrefix string = '10.100.0.0/16'
 param isPrivate bool = true
@@ -20,7 +19,7 @@ var cosmosDbContainerName = 'products'
 var cosmosDbPrivateEndpointName = '${prefix}-cosmosdb-pe'
 var paritionKey = '/id'
 
-var searchServiceName = '${prefix}-search'
+var searchServiceName = '${prefix}-search1'
 
 // set the variable if isPrivate is true
 var publicNetworkAccess = isPrivate ? 'disabled' : 'enabled'
@@ -130,9 +129,39 @@ module searchService './modules/searchService/search.bicep' = {
     tags: tags
     vnet: vnet.outputs.vnet
     publicNetworkAccess: publicNetworkAccess
+    sku: {
+      name: 'standard2'
+    }
+    // openAIResourceID: openAi.outputs.openAiResourceId
+    // comsosAccountResourceID: cosmos.outputs.comsosAccountResourceID
     
   }
 }
+
+module searchwithSharedPrivateLink './modules/searchService/searchwithsharedPrivatelink.bicep' = {
+  scope: rg
+  name: 'searchServiceSharedPrivateLink'
+  params: {
+    name: searchServiceName
+    isPrivate: isPrivate
+    prefix: prefix
+    location: location
+    tags: tags
+    vnet: vnet.outputs.vnet
+    publicNetworkAccess: publicNetworkAccess
+    openAIResourceID: openAi.outputs.openAiResourceId
+    comsosAccountResourceID: cosmos.outputs.comsosAccountResourceID
+    sku: {
+      name: 'standard2'
+    }
+    
+  }
+  dependsOn:[
+    searchService,openAi,cosmos
+  ]
+}
+
+
 
 // OpenAI deployment
 

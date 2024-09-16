@@ -151,5 +151,6 @@ resource sqlContributorRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sql
 output cosmosDbAccount object = cosmosDbAccount
 output cosmosDbDatabase object = database
 output cosmosDbContainer object = container
+output comsosAccountResourceID string = cosmosDbAccount.id
 
 
