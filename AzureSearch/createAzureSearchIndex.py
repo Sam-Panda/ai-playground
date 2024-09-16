@@ -86,6 +86,7 @@ def create_data_source(
                 soft_delete_column_name="isDeleted",
                 soft_delete_marker_value="true"
             )
+            
         )
     data_source = ds_client.create_or_update_data_source_connection(data_source_connection)
     return data_source
@@ -316,7 +317,7 @@ def create_search_indexer(
                                                     image_action=None,
                                                     allow_skillset_to_read_file_data=None,
                                                     pdf_text_rotation_algorithm=None,
-                                                    
+                                                    execution_environment="private"                                                     
                                                     
                                                     )
     parameters = IndexingParameters(configuration=configuration)
@@ -333,6 +334,7 @@ def create_search_indexer(
         parameters=parameters,
         field_mappings=None,
         output_field_mappings=output_field_mappings,
+        
     )
 
     indexer_client = SearchIndexerClient(service_endpoint, credential)

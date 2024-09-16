@@ -69,7 +69,7 @@ resource search 'Microsoft.Search/searchServices@2023-11-01'  = {
   }
   sku: sku
   resource sharedPrivateLinkResourceOpenAi 'sharedPrivateLinkResources@2023-11-01' =  {
-    name: 'search-shared-private-link-openAi'
+    name: 'search1-shared-private-link-openAi'
     properties: {
       groupId: 'openai_account'
       status: 'Approved'
@@ -79,7 +79,7 @@ resource search 'Microsoft.Search/searchServices@2023-11-01'  = {
     }
   }
   resource sharedPrivateLinkResourceCosmosDb 'sharedPrivateLinkResources@2023-11-01' =  {
-    name: 'search-shared-private-link-cosmosDb'
+    name: 'search1-shared-private-link-cosmosDb'
     properties: {
       groupId: 'Sql'
       status: 'Approved'

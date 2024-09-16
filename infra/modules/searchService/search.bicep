@@ -44,7 +44,7 @@ param replicaCount int = 1
 ])
 param semanticSearch string = 'free'
 
-var aisearchPrivateEndpointName = '${prefix}-aisearch-pe'
+var aisearchPrivateEndpointName = '${prefix}-aisearch1-pe'
 
 var searchIdentityProvider = (sku.name == 'free') ? null : {
   type: 'SystemAssigned'
