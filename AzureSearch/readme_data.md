@@ -5,13 +5,12 @@ In this example, we will upload a sample data into cosmsos db and create an inde
 
 ## Prerequisites
 1. You already have an Active Azure Subscription.
-2. (Optional) You have already created a service principal to authenticate to the Microsoft Purview Environment. If you do not have the Azure Service Principal, you can use your credential to authenticate. Or, you can use Managed Identity to authenticate.
-3. You have a python virtual environment where the required modules are already installed (requirements.txt). If you do not have the virtual environment, you can create one using the below command.
+2. You have a python virtual environment where the required modules are already installed (requirements.txt). If you do not have the virtual environment, you can create one using the below command.
 
 ```bash
 python -m venv < virtual environment name>
 ```
-4. Install the packages that are required to run the script. You can install the packages using the below command.
+3. Install the packages that are required to run the script. You can install the packages using the below command.
 
 ```bash 
 pip install -r requirements.txt

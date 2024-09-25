@@ -14,7 +14,7 @@
         "cosmos_db_container_name" : "products",
         "cosmos_db_partition_key" : "/id"
     },
-    "ai-search-config":{
+    "ai-search-config":{ 
         "data-source-config":{
             "cosmos_db_data_source_name" : "cosmos-db-data-source"
         },
@@ -32,11 +32,11 @@
                 {"field": "description_vectorized","type" :"vector"}
             ],
             "key_field" : "id",
-            "retrievable_fields" : ["id","Name","Type","Description","Price","Image_URL","isDeleted","description_vectorized"],
+            "retrievable_fields" : ["id","Name","Type","Description","Price","Brand","Image_URL","isDeleted","description_vectorized"],
             "filterable_fields" : ["id","Name","Type","Description","Brand","Price"],
             "sortable_fields" : ["Name","Price"],
             "facetable_fields" : ["Name","Price","Type","Brand","Description"],
-            "searchable_fields" : ["name","description", "description_vectorized", "brand_vectorized"],
+            "searchable_fields" : ["Name","Description", "description_vectorized"],
             "vector_fields" : ["description_vectorized"],
             "semantic_configurations": {
                 "name": "product-semantic-config",

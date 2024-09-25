@@ -1,11 +1,11 @@
 import os 
+import sys
 import json
 import argparse
 import pandas as pd
 from azure.keyvault.secrets import SecretClient
-from azure.identity import DefaultAzureCredential
+from azure.identity import DefaultAzureCredential, ManagedIdentityCredential, ClientSecretCredential
 from azure.search.documents.indexes import SearchIndexClient, SearchIndexerClient
-from azure.identity import ClientSecretCredential
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
@@ -349,6 +349,8 @@ if __name__ == "__main__":
     tenant_id = os.environ["TENANT_ID"]
     client_id = os.environ["CLIENT_ID"]
     client_secret = os.environ["CLIENT_SECRET"]
+    MI_CLIENT_ID = os.environ["MI_CLIENT_ID"]
+    print(f"MI_CLIENT_ID: {MI_CLIENT_ID}")
  
     #===========================================================================================================================
     
@@ -398,7 +400,11 @@ if __name__ == "__main__":
     #     tenant_id = os.environ["TENANT_ID"]
 
     # we will first check if the service principal details are present.
-    if (client_id == "" or client_secret == "" or tenant_id == ""):
+    if (MI_CLIENT_ID != ""):
+        print("Using the Managed Identity credentials")
+        credential = ManagedIdentityCredential(client_id=MI_CLIENT_ID)
+
+    elif (client_id == "" or client_secret == "" or tenant_id == ""):
         print("Using the Default credentials")
         credential = DefaultAzureCredential()
         
@@ -424,17 +430,14 @@ if __name__ == "__main__":
     #     print(f"Missing key vault secrets : {e}")
 
     #  option 2: reading the environment varaibles from the .env file
-    service_endpoint = os.environ["AZURE_SEARCH_SERVICE_ENDPOINT"]
-    azure_cosmosdb_resource_id_connection_string = os.environ["AZURE_COSMOSDB_RESOURCE_ID_CONNECTION_STRING"]
-    azure_openai_endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
+    service_endpoint = os.environ["AZURE_SEARCH_ENDPOINT"]
+    azure_cosmosdb_resource_id_connection_string = os.environ["COSMOS_DB_CONNECTION_STRING"]
+    azure_openai_endpoint = os.environ["OPEN_AI_ENDPOINT"]
 
 
     # create the search client   
 
     search_index_client = SearchIndexClient(service_endpoint, credential)
-
-
-
     search_indexer_data_source_name = config["ai-search-config"]["data-source-config"]["cosmos_db_data_source_name"]
     cosmos_db_container_name = config["cosmos-config"]["cosmos_db_container_name"]
 
@@ -443,14 +446,19 @@ if __name__ == "__main__":
     # The authentication will be done using the search service managed identity.
     # https://learn.microsoft.com/en-us/azure/search/search-howto-index-cosmosdb#supported-credentials-and-connection-strings
 
-    print("Creating the data source")
-    data_source = create_data_source(
-        service_endpoint=service_endpoint,
-        credential=credential,
-        cosmos_db_container_name=cosmos_db_container_name,
-        azure_cosmosdb_resource_id_connection_string=azure_cosmosdb_resource_id_connection_string,
-        search_indexer_data_source_name=search_indexer_data_source_name,
-    )
+    try:
+        print("Creating the data source")
+        data_source = create_data_source(
+            service_endpoint=service_endpoint,
+            credential=credential,
+            cosmos_db_container_name=cosmos_db_container_name,
+            azure_cosmosdb_resource_id_connection_string=azure_cosmosdb_resource_id_connection_string,
+            search_indexer_data_source_name=search_indexer_data_source_name,
+        )
+        print("data source created successfully")
+    except Exception as error:  
+        print(f"Error occurred during data source creation: {error}")
+        sys.exit(1)
 
     # creating Index
     search_index_name = config["ai-search-config"]["search-index-config"]["name"]
@@ -476,59 +484,70 @@ if __name__ == "__main__":
     open_ai_embedding_deployment_name = config["open_ai_config"]["embedding_deployment_name"]
     open_ai_embedding_model_name = config["open_ai_config"]["embedding_model_name"]
 
-    print("Creating the search index")
-    index = create_search_index(
-        credential=credential,
-        config=config,
-        service_endpoint=service_endpoint,
-        search_index_name=search_index_name,
-        search_index_all_fields=search_index_all_fields,
-        search_index_key_field=search_index_key_field,
-        searchable_fields=searchable_fields,
-        filterable_fields=filterable_fields,
-        sortable_fields=sortable_fields,
-        facetable_fields=facetable_fields,
-        vector_fields=vector_fields,
-        azure_openai_endpoint=azure_openai_endpoint,
-        semantic_config_isEnabled=semantic_config_isEnabled,
-        semantic_config_name=semantic_config_name,
-        semantic_config_title_filed=semantic_config_title_filed,
-        semantic_config_keyword_fields=semantic_config_keyword_fields,
-        semantic_config_content_fields=semantic_config_content_fields,
-        open_ai_embedding_deployment_name=open_ai_embedding_deployment_name,
-        open_ai_embedding_model_name=open_ai_embedding_model_name
-        
-    )
+    try:
+        print("Creating the search index")
+        index = create_search_index(
+            credential=credential,
+            config=config,
+            service_endpoint=service_endpoint,
+            search_index_name=search_index_name,
+            search_index_all_fields=search_index_all_fields,
+            search_index_key_field=search_index_key_field,
+            searchable_fields=searchable_fields,
+            filterable_fields=filterable_fields,
+            sortable_fields=sortable_fields,
+            facetable_fields=facetable_fields,
+            vector_fields=vector_fields,
+            azure_openai_endpoint=azure_openai_endpoint,
+            semantic_config_isEnabled=semantic_config_isEnabled,
+            semantic_config_name=semantic_config_name,
+            semantic_config_title_filed=semantic_config_title_filed,
+            semantic_config_keyword_fields=semantic_config_keyword_fields,
+            semantic_config_content_fields=semantic_config_content_fields,
+            open_ai_embedding_deployment_name=open_ai_embedding_deployment_name,
+            open_ai_embedding_model_name=open_ai_embedding_model_name
+            
+        )
+        print("Indexer search index successfully")
+    except Exception as error:  
+        print(f"Error occurred during index creation: {error}")
+        sys.exit(1)
 
     # create Azure Open AI Embedding skillset
-
-    search_skillset_openai_embedding_config = config["ai-search-config"]["search-skillset-config"]["openai-embedding"]
-    open_ai_embedding_skillset_name = config["ai-search-config"]["search-skillset-config"]["name"]
-    print("Creating the skillset")
-    open_ai_embedding_skillset = create_open_ai_embedding_skillset(
-        service_endpoint=service_endpoint,
-        credential=credential,
-        search_skillset_openai_embedding_config=search_skillset_openai_embedding_config,
-        azure_openai_endpoint=azure_openai_endpoint,
-        open_ai_embedding_deployment_name=open_ai_embedding_deployment_name,
-        open_ai_embedding_model_name=open_ai_embedding_model_name,
-        open_ai_embedding_skillset_name=open_ai_embedding_skillset_name
-    )
-
+    try:
+        search_skillset_openai_embedding_config = config["ai-search-config"]["search-skillset-config"]["openai-embedding"]
+        open_ai_embedding_skillset_name = config["ai-search-config"]["search-skillset-config"]["name"]
+        print("Creating the skillset")
+        open_ai_embedding_skillset = create_open_ai_embedding_skillset(
+            service_endpoint=service_endpoint,
+            credential=credential,
+            search_skillset_openai_embedding_config=search_skillset_openai_embedding_config,
+            azure_openai_endpoint=azure_openai_endpoint,
+            open_ai_embedding_deployment_name=open_ai_embedding_deployment_name,
+            open_ai_embedding_model_name=open_ai_embedding_model_name,
+            open_ai_embedding_skillset_name=open_ai_embedding_skillset_name
+        )
+        print("Skillset created successfully")
+    except Exception as error:  
+        print(f"Error occurred during open ai embedding skillset creation: {error}")
 
     # create an Indexer
-    search_indexer_name = config["ai-search-config"]["search-indexer-config"]["name"]
-    print("Creating the indexer")
-    indexer = create_search_indexer(
-        service_endpoint=service_endpoint,
-        credential=credential,
-        search_indexer_name=search_indexer_name,
-        data_source_name=search_indexer_data_source_name,
-        index_name=search_index_name,
-        search_skillset_openai_embedding_config=search_skillset_openai_embedding_config,
-        open_ai_embedding_skillset_name=open_ai_embedding_skillset_name
-      
-    )
+    try:
+        search_indexer_name = config["ai-search-config"]["search-indexer-config"]["name"]
+        print("Creating the indexer")
+        indexer = create_search_indexer(
+            service_endpoint=service_endpoint,
+            credential=credential,
+            search_indexer_name=search_indexer_name,
+            data_source_name=search_indexer_data_source_name,
+            index_name=search_index_name,
+            search_skillset_openai_embedding_config=search_skillset_openai_embedding_config,
+            open_ai_embedding_skillset_name=open_ai_embedding_skillset_name     
+        )
+        print("Indexer created successfully")
+    except Exception as error:
+        print(f"Error in creating the indexer: {error}")
+        sys.exit(1)
 
-    print("Indexer created successfully")
+
 
